@@ -1,3 +1,4 @@
+
 let circles = [];
 let hexagonRadius = 145;
 
@@ -6,7 +7,7 @@ let circleSize = 225;
 
 function setup() {
   createCanvas(800, 800);
-  noLoop();
+  loop();
 
   // Each circle object now has a 'pattern' property to determine which function should be used
   circles.push({ cx: 130, cy: 130, size: circleSize, pattern: "smallCircles" });
@@ -38,17 +39,19 @@ function draw() {
     }
   }
 
+  let noiseOffset = frameCount * 0.08;
+  
   for (let circle of circles) {
     // Apply the correct pattern based on the 'pattern' property
     switch (circle.pattern) {
       case "smallCircles":
-        drawSmallCircles(circle.cx, circle.cy, circle.size);
+        drawSmallCircles(circle.cx, circle.cy, circle.size, noiseOffset);
         break;
       case "defaultPattern":
-        drawCirclePattern(circle.cx, circle.cy, circle.size);
+        drawCirclePattern(circle.cx, circle.cy, circle.size, noiseOffset);
         break;
       case "ZigCircle":
-        drawZigCircle(circle.cx, circle.cy, circle.size);
+        drawZigCircle(circle.cx, circle.cy, circle.size, noiseOffset);
         break;
       // Add more cases here for additional patterns
     }
@@ -96,10 +99,9 @@ function drawHexagonPattern(cx, cy) {
   }
 }
 
-function drawSmallCircles(cx, cy, size) {
+// Modify the drawSmallCircles function to handle animation
+function drawSmallCircles(cx, cy, size, noiseOffset) {
   let numSmallCircles = 50;
-
-  // Drawing small circles within the big circle
   let angleIncrement = 360 / numSmallCircles;
   let radii = [size / 2, 60, 50, 40, 30, 20, 10];
   let colors = [
@@ -113,20 +115,22 @@ function drawSmallCircles(cx, cy, size) {
   ellipse(cx, cy, radii[0] * 2);
   pop();
 
+  // Only draw smaller circles based on noise
   for (let r = 0; r < size / 2; r += 8) {
     for (let j = 0; j < numSmallCircles; j++) {
       let angle = radians(j * angleIncrement);
       let x = cx + cos(angle) * r;
       let y = cy + sin(angle) * r;
-      push();
-      fill(4, 2, 101);
-      noStroke();
-      ellipse(x, y, 7);
-      pop();
-    }
-  }
-
-  for (let i = 1; i < radii.length; i++) {
+      // Use Perlin noise to determine if the circle should be drawn
+      let noiseValue = noise(noiseOffset + j * 0.01, r * 0.01);
+      if (noiseValue > 0.4) { // Adjust threshold to control appearance
+        push();
+        fill(4, 2, 101);
+        noStroke();
+        ellipse(x, y, 7);
+        pop();
+        
+        for (let i = 1; i < radii.length; i++) {
     push();
     fill(colors[i]);
     stroke(130, 154, 138);
@@ -135,29 +139,34 @@ function drawSmallCircles(cx, cy, size) {
     pop();
   }
 }
+      }
+    }
+  }
 
-function drawCirclePattern(cx, cy, size) {
+function drawCirclePattern(cx, cy, size, noiseOffset) {
   noStroke();
   fill(255);
   ellipse(cx, cy, size, size);
 
-  fill(206, 64, 87);
-  for (let j = 0; j < 5; j++) {
-    let ps = circlePoints({ x: cx, y: cy }, size - (j + 1) * 30);
-    for (let i = 0; i < ps.length; i++) {
-      ellipse(ps[i].x, ps[i].y, 10, 10);
-    }
-  }
+   let numCircles = 5; // Number of circle sets
+  let circleSpacing = 30; // Spacing between the circles
 
-  fill(213, 94, 173);
-  stroke(217, 56, 79);
-  strokeWeight(5);
-  ellipse(cx, cy, size / 2);
-  strokeWeight(2);
-  stroke(227, 102, 82);
-  let ps = circlePoints({ x: cx, y: cy }, size / 2 - 15);
-  for (let i = 0; i < ps.length; i++) {
-    line(ps[i].x, ps[i].y, cx, cy);
+  for (let j = 0; j < numCircles; j++) {
+    let currentSize = size - j * circleSpacing;
+    let ps = circlePoints({ x: cx, y: cy }, currentSize);
+
+    // Use Perlin noise to determine if the circle should be drawn
+    for (let i = 0; i < ps.length; i++) {
+      // You can use the distance from the center to affect the noiseOffset
+      let distance = dist(cx, cy, ps[i].x, ps[i].y);
+      let noiseValue = noise(noiseOffset + distance * 0.02);
+
+      if (noiseValue > 0.5) { // Adjust threshold to control appearance
+        fill(206, 64, 87);
+        noStroke();
+        ellipse(ps[i].x, ps[i].y, 10, 10);
+      }
+    }
   }
 
   stroke(216, 77, 135);
@@ -189,10 +198,11 @@ function circlePoints(center, diameter) {
   return points;
 }
 
-function drawZigCircle(cx, cy, size) {
+function drawZigCircle(cx, cy, size, noiseOffset) {
   // Yellow circle in the background
   fill(255, 211, 52); // Set the fill color to yellow
   stroke(255, 255, 255); // No border for the circle
+  strokeWeight(2)
   ellipse(cx, cy, size);
 
   // Radiating zigzag lines on top of the yellow circle
@@ -204,7 +214,7 @@ function drawZigCircle(cx, cy, size) {
   ellipse(cx, cy, size * 0.595);
 
   // Draw small red circles
-  drawRedCircles(cx, cy, size * 0.3, 50);
+  drawRedCircles(cx, cy, size * 0.3, 50, noiseOffset);
   
   // Green outer circle
   fill(130, 154, 138);
@@ -216,11 +226,11 @@ function drawZigCircle(cx, cy, size) {
   
   // Red middle circle
   fill(255, 0, 0);
-  ellipse(cx, cy, size * 0.095);
+  ellipse(cx, cy, size * 0.1);
   
   // White center circle
   fill(255);
-  ellipse(cx, cy, size * 0.05);
+  ellipse(cx, cy, size * 0.005);
 }
 
 function drawRadialZigzag(cx, cy, radius, segments, zigzagLength, direction) {
@@ -247,18 +257,22 @@ function drawRadialZigzag(cx, cy, radius, segments, zigzagLength, direction) {
 }
 
 
-function drawRedCircles(centerX, centerY, bigCircleRadius, numSmallCircles) {
+function drawRedCircles(centerX, centerY, bigCircleRadius, numSmallCircles, noiseOffset) {
   let angleIncrement = 360 / numSmallCircles;
   for (let r = 0; r < bigCircleRadius; r += 7) {
     for (let i = 0; i < numSmallCircles; i++) {
       let angle = radians(i * angleIncrement);
       let x = centerX + cos(angle) * r;
       let y = centerY + sin(angle) * r;
-      push();
-      fill(247, 10, 4); // Red fill for small dots
-      noStroke(); // No border for the small dots
-      ellipse(x, y, 6);
-      pop();
+      // Use Perlin noise to determine if the circle should be drawn
+      let noiseValue = noise(noiseOffset + i * 0.02, r * 0.02);
+      if (noiseValue > 0.4) { // Adjust the threshold to control the appearance
+        push();
+        fill(247, 10, 4); // Red fill for small dots
+        noStroke(); // No border for the small dots
+        ellipse(x, y, 6);
+        pop();
+      }
     }
   }
 }
